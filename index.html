@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#050c05">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<title>TETRIS 1985 - Elektronika 60</title>
+<style>
+  * {
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #050c05;
+    color: #33ff66;
+    font-family: "Courier New", Courier, monospace;
+    overflow: hidden;
+    touch-action: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  #crt {
+    position: relative;
+    background: radial-gradient(ellipse at center, #0a1f0d 0%, #040d05 100%);
+    border: 2px solid #1f6b32;
+    border-radius: 10px;
+    padding: 10px 12px;
+    box-shadow: 0 0 24px rgba(51, 255, 102, 0.18), inset 0 0 18px rgba(51, 255, 102, 0.08);
+    max-width: 98vw;
+    max-height: 98vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  #crt::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.18),
+      rgba(0, 0, 0, 0.18) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    pointer-events: none;
+    border-radius: 10px;
+  }
+  #header {
+    font-size: clamp(11px, 3vw, 15px);
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-shadow: 0 0 6px #33ff66;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+  #main-area {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  #screen {
+    margin: 0;
+    font-size: clamp(13px, 3.8vw, 19px);
+    line-height: 1.12;
+    font-weight: bold;
+    text-shadow: 0 0 6px rgba(51, 255, 102, 0.75);
+    white-space: pre;
+    cursor: pointer;
+  }
+  #hud {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-size: clamp(11px, 2.8vw, 14px);
+    line-height: 1.35;
+    text-shadow: 0 0 5px rgba(51, 255, 102, 0.65);
+    min-width: 96px;
+  }
+  .hud-box {
+    margin-bottom: 8px;
+  }
+  #next-box {
+    white-space: pre;
+    font-weight: bold;
+    min-height: 3.8em;
+    cursor: pointer;
+  }
+  #toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+    justify-content: center;
+    z-index: 2;
+  }
+  button {
+    background: #081b0b;
+    color: #33ff66;
+    border: 1px solid #299e46;
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-family: inherit;
+    font-size: clamp(10px, 2.6vw, 12px);
+    font-weight: bold;
+    text-shadow: 0 0 4px #33ff66;
+    cursor: pointer;
+  }
+  button:active {
+    background: #33ff66;
+    color: #040d05;
+  }
+  #hint {
+    margin-top: 6px;
+    font-size: clamp(9px, 2.3vw, 11px);
+    color: #26b84c;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div id="crt">
+  <div id="header">ELEKTRONIKA 60 :: TETRIS (1985)</div>
+  <div id="main-area">
+    <pre id="screen"></pre>
+    <div id="hud">
+      <div class="hud-box">
+        <div>SCORE</div>
+        <div id="score">0</div>
+        <div style="margin-top:4px;">LINES</div>
+        <div id="lines">0</div>
+        <div style="margin-top:4px;">LEVEL</div>
+        <div id="level">1</div>
+      </div>
+      <div class="hud-box" id="next-container">
+        <div>NEXT:</div>
+        <pre id="next-box"></pre>
+      </div>
+      <div class="hud-box" id="status-msg">TAP SCREEN<br>TO START</div>
+    </div>
+  </div>
+  <div id="toolbar">
+    <button id="btn-start">[START/PAUSE]</button>
+    <button id="btn-next">[NEXT: ON]</button>
+    <button id="btn-ghost">[GHOST: ON]</button>
+    <button id="btn-reset">[RESET]</button>
+  </div>
+  <div id="hint">Swipe L/R: Move | Tap: Rotate | Drag Down: Soft | Flick Down: Hard Drop</div>
+</div>
+
+<script>
+const W = 10, H = 20;
+const SHAPES = [
+  [[[0,1],[1,1],[2,1],[3,1]], [[2,0],[2,1],[2,2],[2,3]]],
+  [[[1,0],[2,0],[1,1],[2,1]]],
+  [[[1,0],[0,1],[1,1],[2,1]], [[1,0],[1,1],[2,1],[1,2]], [[0,1],[1,1],[2,1],[1,2]], [[1,0],[0,1],[1,1],[1,2]]],
+  [[[1,0],[2,0],[0,1],[1,1]], [[1,0],[1,1],[2,1],[2,2]]],
+  [[[0,0],[1,0],[1,1],[2,1]], [[2,0],[1,1],[2,1],[1,2]]],
+  [[[0,0],[0,1],[1,1],[2,1]], [[1,0],[2,0],[1,1],[1,2]], [[0,1],[1,1],[2,1],[2,2]], [[1,0],[1,1],[0,2],[1,2]]],
+  [[[2,0],[0,1],[1,1],[2,1]], [[1,0],[1,1],[1,2],[2,2]], [[0,1],[1,1],[2,1],[0,2]], [[0,0],[1,0],[1,1],[1,2]]]
+];
+
+let board = [], curPiece = null, nextPiece = null;
+let rot = 0, px = 3, py = 0, pieceId = 0;
+let score = 0, lines = 0, level = 1;
+let state = "TITLE"; // TITLE, PLAY, PAUSE, OVER
+let showNext = true, showGhost = true;
+let lastFall = 0;
+
+const screenEl = document.getElementById("screen");
+const scoreEl = document.getElementById("score");
+const linesEl = document.getElementById("lines");
+const levelEl = document.getElementById("level");
+const nextBoxEl = document.getElementById("next-box");
+const statusEl = document.getElementById("status-msg");
+
+function randPiece() {
+  return SHAPES[Math.floor(Math.random() * SHAPES.length)];
+}
+
+function resetGame() {
+  board = Array.from({length: H}, () => Array(W).fill(0));
+  curPiece = randPiece();
+  nextPiece = randPiece();
+  rot = 0; px = 3; py = 0; pieceId++;
+  score = 0; lines = 0; level = 1;
+  state = "PLAY";
+  lastFall = performance.now();
+  updateHud();
+  render();
+}
+
+function collides(shape, ox, oy) {
+  for (const [x, y] of shape) {
+    const nx = x + ox, ny = y + oy;
+    if (nx < 0 || nx >= W || ny >= H) return true;
+    if (ny >= 0 && board[ny][nx]) return true;
+  }
+  return false;
+}
+
+function lockPiece() {
+  for (const [x, y] of curPiece[rot]) {
+    if (py + y >= 0) board[py + y][px + x] = 1;
+  }
+  let cleared = 0;
+  board = board.filter(row => {
+    if (row.every(c => c === 1)) { cleared++; return false; }
+    return true;
+  });
+  while (board.length < H) board.unshift(Array(W).fill(0));
+  if (cleared > 0) {
+    lines += cleared;
+    score += [0, 100, 300, 500, 800][cleared] * level;
+    level = 1 + Math.floor(lines / 10);
+  }
+  curPiece = nextPiece;
+  nextPiece = randPiece();
+  rot = 0; px = 3; py = 0; pieceId++;
+  if (collides(curPiece[rot], px, py)) {
+    state = "OVER";
+  }
+  updateHud();
+}
+
+function moveHoriz(dir) {
+  if (state !== "PLAY") return false;
+  if (!collides(curPiece[rot], px + dir, py)) {
+    px += dir;
+    render();
+    return true;
+  }
+  return false;
+}
+
+function rotatePiece() {
+  if (state !== "PLAY") return;
+  const nRot = (rot + 1) % curPiece.length;
+  if (!collides(curPiece[nRot], px, py)) {
+    rot = nRot;
+    render();
+  }
+}
+
+function softDrop() {
+  if (state !== "PLAY") return false;
+  if (!collides(curPiece[rot], px, py + 1)) {
+    py++;
+    score += 1;
+    lastFall = performance.now();
+    updateHud();
+    render();
+    return true;
+  } else {
+    lockPiece();
+    render();
+    return false;
+  }
+}
+
+function hardDrop() {
+  if (state !== "PLAY") return;
+  while (!collides(curPiece[rot], px, py + 1)) {
+    py++;
+    score += 2;
+  }
+  lockPiece();
+  lastFall = performance.now();
+  render();
+}
+
+function getGhostY() {
+  let gy = py;
+  while (!collides(curPiece[rot], px, gy + 1)) gy++;
+  return gy;
+}
+
+function updateHud() {
+  scoreEl.textContent = score;
+  linesEl.textContent = lines;
+  levelEl.textContent = level;
+  if (state === "PLAY") statusEl.innerHTML = "ACTIVE";
+  else if (state === "PAUSE") statusEl.innerHTML = "PAUSED<br>TAP TO RESUME";
+  else if (state === "OVER") statusEl.innerHTML = "GAME OVER<br>TAP TO RETRY";
+  else statusEl.innerHTML = "TAP SCREEN<br>TO START";
+
+  if (!showNext || !nextPiece) {
+    nextBoxEl.textContent = "  [HIDDEN]";
+  } else {
+    const grid = Array.from({length: 3}, () => Array(4).fill("  "));
+    for (const [x, y] of nextPiece[0]) {
+      if (y < 3 && x < 4) grid[y][x] = "[]";
+    }
+    nextBoxEl.textContent = grid.map(r => r.join("")).join("\n");
+  }
+}
+
+function render() {
+  const disp = Array.from({length: H}, (_, y) =>
+    Array.from({length: W}, (_, x) => (board[y] && board[y][x] ? "[]" : " ."))
+  );
+
+  if (state === "PLAY" && curPiece) {
+    if (showGhost) {
+      const gy = getGhostY();
+      for (const [x, y] of curPiece[rot]) {
+        const nx = px + x, ny = gy + y;
+        if (ny >= 0 && ny < H && nx >= 0 && nx < W && disp[ny][nx] === " .") {
+          disp[ny][nx] = "::";
+        }
+      }
+    }
+    for (const [x, y] of curPiece[rot]) {
+      const nx = px + x, ny = py + y;
+      if (ny >= 0 && ny < H && nx >= 0 && nx < W) {
+        disp[ny][nx] = "[]";
+      }
+    }
+  }
+
+  let out = "";
+  for (let y = 0; y < H; y++) {
+    out += "<!" + disp[y].join("") + "!>\n";
+  }
+  out += "<!" + "==".repeat(W) + "!>\n";
+  out += "  " + "\\/".repeat(W) + "  ";
+  screenEl.textContent = out;
+}
+
+// Game loop
+function loop(now) {
+  if (state === "PLAY") {
+    const speed = Math.max(80, 550 - (level - 1) * 48);
+    if (now - lastFall >= speed) {
+      if (!collides(curPiece[rot], px, py + 1)) {
+        py++;
+      } else {
+        lockPiece();
+      }
+      lastFall = now;
+      render();
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+// Keyboard controls
+window.addEventListener("keydown", e => {
+  if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"," "].includes(e.key)) e.preventDefault();
+  if (state !== "PLAY") {
+    if (e.key === " " || e.key === "Enter") {
+      if (state === "PAUSE") { state = "PLAY"; lastFall = performance.now(); updateHud(); }
+      else resetGame();
+    }
+    return;
+  }
+  if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") moveHoriz(-1);
+  else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") moveHoriz(1);
+  else if (e.key === "ArrowUp" || e.key === "w" || e.key === "W") rotatePiece();
+  else if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") softDrop();
+  else if (e.key === " ") hardDrop();
+  else if (e.key === "p" || e.key === "P") { state = "PAUSE"; updateHud(); }
+});
+
+// Touch Gesture Controls (Official Tetris Style)
+let tStartX = 0, tStartY = 0, tStartTime = 0;
+let lastRefX = 0, lastRefY = 0, lastMoveY = 0, lastMoveTime = 0;
+let touchPieceId = -1, movedDuringTouch = false;
+
+function getCellWidth() {
+  const rect = screenEl.getBoundingClientRect();
+  return Math.max(14, rect.width / 12); // 10 cols + borders
+}
+
+const crtEl = document.getElementById("crt");
+crtEl.addEventListener("pointerdown", e => {
+  if (e.target.tagName === "BUTTON") return;
+  if (state !== "PLAY") {
+    if (state === "PAUSE") { state = "PLAY"; lastFall = performance.now(); updateHud(); }
+    else resetGame();
+    return;
+  }
+  tStartX = lastRefX = e.clientX;
+  tStartY = lastRefY = lastMoveY = e.clientY;
+  tStartTime = lastMoveTime = performance.now();
+  touchPieceId = pieceId;
+  movedDuringTouch = false;
+});
+
+crtEl.addEventListener("pointermove", e => {
+  if (touchPieceId !== pieceId || state !== "PLAY") return;
+  const cw = getCellWidth();
+  const dx = e.clientX - lastRefX;
+  const dy = e.clientY - lastRefY;
+
+  if (Math.abs(e.clientX - tStartX) > 12 || Math.abs(e.clientY - tStartY) > 12) {
+    movedDuringTouch = true;
+  }
+
+  // Horizontal 1:1 drag
+  if (Math.abs(dx) >= cw) {
+    const steps = Math.trunc(dx / cw);
+    const dir = Math.sign(steps);
+    for (let i = 0; i < Math.abs(steps); i++) moveHoriz(dir);
+    lastRefX += steps * cw;
+  }
+
+  // Vertical drag (soft drop vs fast flick check on release)
+  const now = performance.now();
+  const dt = Math.max(1, now - lastMoveTime);
+  const vy = (e.clientY - lastMoveY) / dt;
+  lastMoveY = e.clientY;
+  lastMoveTime = now;
+
+  if (dy >= cw * 1.15 && vy < 0.85) {
+    const steps = Math.trunc(dy / (cw * 1.15));
+    for (let i = 0; i < steps; i++) {
+      if (touchPieceId !== pieceId) break;
+      softDrop();
+    }
+    lastRefY += steps * (cw * 1.15);
+  }
+});
+
+crtEl.addEventListener("pointerup", e => {
+  if (touchPieceId !== pieceId || state !== "PLAY") {
+    touchPieceId = -1;
+    return;
+  }
+  const now = performance.now();
+  const totalDt = Math.max(1, now - tStartTime);
+  const totalDy = e.clientY - tStartY;
+  const totalDx = e.clientX - tStartX;
+  const flickVy = totalDy / totalDt;
+
+  if (!movedDuringTouch && totalDt < 280) {
+    rotatePiece();
+  } else if (totalDy > 42 && Math.abs(totalDy) > Math.abs(totalDx) * 1.3 && flickVy >= 0.85) {
+    hardDrop();
+  }
+  touchPieceId = -1;
+});
+
+// Toolbar Buttons
+document.getElementById("btn-start").addEventListener("click", () => {
+  if (state === "PLAY") state = "PAUSE";
+  else if (state === "PAUSE") { state = "PLAY"; lastFall = performance.now(); }
+  else resetGame();
+  updateHud();
+});
+document.getElementById("btn-next").addEventListener("click", e => {
+  showNext = !showNext;
+  e.target.textContent = showNext ? "[NEXT: ON]" : "[NEXT: OFF]";
+  updateHud();
+});
+document.getElementById("btn-ghost").addEventListener("click", e => {
+  showGhost = !showGhost;
+  e.target.textContent = showGhost ? "[GHOST: ON]" : "[GHOST: OFF]";
+  render();
+});
+document.getElementById("btn-reset").addEventListener("click", () => resetGame());
+
+// Init board & start loop
+board = Array.from({length: H}, () => Array(W).fill(0));
+updateHud();
+render();
+requestAnimationFrame(loop);
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+</script>
+</body>
+</html>

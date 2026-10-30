@@ -1,0 +1,17 @@
+{
+  "name": "Tetris 1985 (Elektronika 60)",
+  "short_name": "Tetris 1985",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#050c05",
+  "theme_color": "#050c05",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
