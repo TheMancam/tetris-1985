@@ -502,6 +502,17 @@ let state = "TITLE"; // TITLE | PLAY | PAUSE | OVER
 let allowHold = true, showNext = true, showGhost = true, sfxOn = true;
 let lastFall = 0;
 
+// Lock delay: a grounded piece gets LOCK_DELAY ms before it locks.
+// Moving/rotating on the ground restarts the timer, up to MAX_LOCK_RESETS times
+// (the count resets whenever the piece reaches a new lowest row).
+const LOCK_DELAY = 500;
+const MAX_LOCK_RESETS = 15;
+let lockStart = null, lockResets = 0, lowestY = 0;
+
+// Wall kicks: offsets tried in order when a rotation is blocked.
+// Sideways first, then 1 up (floor kick), then 2 sideways (mainly for the I piece).
+const KICKS = [[0,0], [-1,0], [1,0], [0,-1], [-1,-1], [1,-1], [-2,0], [2,0], [0,-2]];
+
 try {
   bestScore = parseInt(localStorage.getItem("e60_tetris_best") || "0", 10) || 0;
 } catch (e) {}
@@ -619,7 +630,7 @@ function spawnNext() {
   px = 3;
   py = 0;
   holdUsed = false;
-  pieceId++;
+  resetLockState();
   if (collides(SHAPES[curType][rot], px, py)) {
     state = "OVER";
     beep(196, 0.18, "sawtooth", 0.06);
@@ -684,19 +695,44 @@ function lockPiece() {
   updateHud();
 }
 
+function resetLockState() {
+  lockStart = null;
+  lockResets = 0;
+  lowestY = py;
+  pieceId++;
+}
+
+function isGrounded() {
+  return collides(SHAPES[curType][rot], px, py + 1);
+}
+
+// Call after any successful move/rotate
+function onPieceManipulated() {
+  if (py > lowestY) { lowestY = py; lockResets = 0; }
+  if (lockStart !== null && lockResets < MAX_LOCK_RESETS) {
+    lockResets++;
+    lockStart = performance.now();
+  }
+}
+
 function triggerHold() {
   if (state !== "PLAY" || !allowHold || holdUsed) return;
   if (holdType === null) {
     holdType = curType;
     spawnNext();
   } else {
+    // Make sure the held piece actually fits at the spawn point before swapping
+    if (collides(SHAPES[holdType][0], 3, 0)) {
+      beep(110, 0.08, "square", 0.05); // blocked
+      return;
+    }
     const tmp = curType;
     curType = holdType;
     holdType = tmp;
     rot = 0;
     px = 3;
     py = 0;
-    pieceId++;
+    resetLockState();
   }
   holdUsed = true;
   lastFall = performance.now();
@@ -709,6 +745,7 @@ function moveHoriz(dir) {
   if (state !== "PLAY") return false;
   if (!collides(SHAPES[curType][rot], px + dir, py)) {
     px += dir;
+    onPieceManipulated();
     beep(320, 0.02, "square", 0.03);
     render();
     return true;
@@ -719,10 +756,16 @@ function moveHoriz(dir) {
 function rotatePiece() {
   if (state !== "PLAY") return;
   const nRot = (rot + 1) % SHAPES[curType].length;
-  if (!collides(SHAPES[curType][nRot], px, py)) {
-    rot = nRot;
-    beep(520, 0.03, "square", 0.035);
-    render();
+  for (const [kx, ky] of KICKS) {
+    if (!collides(SHAPES[curType][nRot], px + kx, py + ky)) {
+      rot = nRot;
+      px += kx;
+      py += ky;
+      onPieceManipulated();
+      beep(520, 0.03, "square", 0.035);
+      render();
+      return;
+    }
   }
 }
 
@@ -730,17 +773,15 @@ function softDrop() {
   if (state !== "PLAY") return false;
   if (!collides(SHAPES[curType][rot], px, py + 1)) {
     py++;
+    if (py > lowestY) { lowestY = py; lockResets = 0; }
     addScore(1);
     lastFall = performance.now();
     beep(240, 0.015, "square", 0.025);
     updateHud();
     render();
     return true;
-  } else {
-    lockPiece();
-    render();
-    return false;
   }
+  return false; // on the ground: lock delay decides when it locks
 }
 
 function hardDrop() {
@@ -879,6 +920,7 @@ function togglePlayPause() {
   } else if (state === "PAUSE") {
     state = "PLAY";
     lastFall = performance.now();
+    if (lockStart !== null) lockStart = lastFall;
     updateHud();
   } else {
     menuOpen = false;
@@ -912,14 +954,21 @@ function syncOptionButtons() {
 function loop(now) {
   if (state === "PLAY") {
     const speed = Math.max(80, 550 - (level - 1) * 48);
-    if (now - lastFall >= speed) {
-      if (!collides(SHAPES[curType][rot], px, py + 1)) {
+    if (!isGrounded()) {
+      lockStart = null;
+      if (now - lastFall >= speed) {
         py++;
-      } else {
-        lockPiece();
+        if (py > lowestY) { lowestY = py; lockResets = 0; }
+        lastFall = now;
+        render();
       }
-      lastFall = now;
-      render();
+    } else {
+      if (lockStart === null) lockStart = now;
+      if (now - lockStart >= LOCK_DELAY || lockResets >= MAX_LOCK_RESETS) {
+        lockPiece();
+        lastFall = now;
+        render();
+      }
     }
   }
   requestAnimationFrame(loop);
