@@ -7,38 +7,34 @@ on:
 
 jobs:
   build-apk:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js 22
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Initialize Capacitor & Android Project
+      - name: Prepare Android Project
         run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           mkdir -p www
-          cp index.html manifest.json icon.svg sw.js www/
+          cp index.html www/
+          if [ -f manifest.json ]; then cp manifest.json www/; fi
+          if [ -f icon.svg ]; then cp icon.svg www/; fi
+          if [ -f sw.js ]; then cp sw.js www/; fi
           npm init -y
           npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
-          cat << 'EOF' > capacitor.config.json
-          {
-            "appId": "com.retro.tetris1985",
-            "appName": "Tetris 1985",
-            "webDir": "www"
-          }
-          EOF
+          node -e 'require("fs").writeFileSync("capacitor.config.json", JSON.stringify({appId:"com.retro.tetris1985",appName:"Tetris 1985",webDir:"www"}))'
           npx cap add android
+          node -e 'const fs=require("fs"),p="android/app/src/main/AndroidManifest.xml";const s=fs.readFileSync(p,"utf8");if(!s.includes("screenOrientation"))fs.writeFileSync(p,s.replace("<activity","<activity android:screenOrientation=\"portrait\""));'
           npx cap sync android
 
       - name: Build Debug APK
