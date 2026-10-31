@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="90" fill="#050c05"/>
-  <rect x="24" y="24" width="464" height="464" rx="70" fill="none" stroke="#33ff66" stroke-width="16"/>
-  <text x="256" y="220" font-family="Courier New, monospace" font-size="120" font-weight="bold" fill="#33ff66" text-anchor="middle">[][][]</text>
-  <text x="256" y="340" font-family="Courier New, monospace" font-size="120" font-weight="bold" fill="#33ff66" text-anchor="middle">  []  </text>
+  <rect width="512" height="512" rx="90" fill="#040b05"/>
+  <rect x="24" y="24" width="464" height="464" rx="70" fill="none" stroke="#35ff69" stroke-width="16"/>
+  <text x="256" y="220" font-family="Courier New, monospace" font-size="120" font-weight="bold" fill="#35ff69" text-anchor="middle">[][][]</text>
+  <text x="256" y="340" font-family="Courier New, monospace" font-size="120" font-weight="bold" fill="#35ff69" text-anchor="middle">  []  </text>
 </svg>
