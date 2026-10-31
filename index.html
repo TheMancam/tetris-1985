@@ -46,8 +46,8 @@
     /* Clears top status bar/camera punch-hole AND bottom Android nav bar */
     padding-top: calc(env(safe-area-inset-top, 0px) + 28px);
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 54px);
-    padding-left: 8px;
-    padding-right: 8px;
+    padding-left: 6px;
+    padding-right: 6px;
     background: radial-gradient(ellipse at center, #0a1f0e 0%, #030904 100%);
   }
   /* Subtle CRT scanline overlay */
@@ -128,13 +128,13 @@
     max-width: 500px;
     margin: 6px auto 0;
     display: flex;
-    gap: 5px;
+    gap: 4px;
     align-items: stretch;
   }
 
   /* Left Wing */
   #left-wing {
-    width: 50px;
+    width: 46px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
@@ -157,9 +157,22 @@
     cursor: pointer;
     text-shadow: 0 0 6px var(--glow);
   }
+  #btn-pause-icon {
+    gap: 5px;
+  }
+  #btn-pause-icon .bar {
+    width: 5px;
+    height: 16px;
+    background: var(--bright);
+    border-radius: 1px;
+    box-shadow: 0 0 6px var(--glow);
+  }
   #btn-pause-icon:active {
     background: var(--bright);
-    color: var(--bg);
+  }
+  #btn-pause-icon:active .bar {
+    background: var(--bg);
+    box-shadow: none;
   }
   .wing-box {
     background: var(--panel);
@@ -185,7 +198,7 @@
   #hold-pre {
     margin: 0;
     padding: 8px 1px;
-    font-size: 8.5px;
+    font-size: 8px;
     line-height: 1.15;
     font-weight: bold;
     text-align: center;
@@ -225,7 +238,7 @@
     background: rgba(4, 14, 6, 0.92);
     border: 1.5px solid var(--border);
     border-radius: 6px;
-    padding: 4px 5px;
+    padding: 3px 4px;
     box-shadow: 0 0 16px rgba(53, 255, 105, 0.12), inset 0 0 14px rgba(53, 255, 105, 0.06);
     display: flex;
     align-items: center;
@@ -273,14 +286,14 @@
 
   /* Right Wing (3-Piece NEXT Stack) */
   #right-wing {
-    width: 50px;
+    width: 46px;
     flex-shrink: 0;
     padding-top: 44px;
   }
   #next-pre {
     margin: 0;
     padding: 8px 1px;
-    font-size: 8.5px;
+    font-size: 8px;
     line-height: 1.15;
     font-weight: bold;
     text-align: center;
@@ -290,72 +303,84 @@
     cursor: pointer;
   }
 
-  /* 3. Bottom Controls Deck (Safely Above Android Navigation Bar) */
-  #bottom-deck {
-    width: 100%;
-    max-width: 500px;
-    margin: 0 auto;
+  /* Empty swipe space under the playfield (whole screen is touch-active) */
+  #swipe-space {
     flex-shrink: 0;
-    z-index: 5;
+    height: clamp(40px, 7dvh, 80px);
   }
-  /* Swipe pad: dedicated touch area under the playfield */
-  #swipe-pad {
-    width: 100%;
-    max-width: 500px;
-    height: clamp(64px, 11dvh, 120px);
-    margin: 6px auto;
-    flex-shrink: 0;
-    border: 1.5px dashed rgba(31, 122, 53, 0.6);
-    border-radius: 6px;
-    background: rgba(7, 22, 10, 0.45);
+
+  /* Pause / options menu */
+  #menu {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    transition: background 0.1s;
+    padding: 16px;
+    background: rgba(2, 7, 3, 0.82);
   }
-  #swipe-pad.active {
-    background: rgba(53, 255, 105, 0.07);
-    border-color: var(--border);
+  #menu.hidden {
+    display: none;
   }
-  .pad-title {
-    font-size: 10px;
-    font-weight: bold;
-    letter-spacing: 2px;
-    color: var(--dim);
+  .menu-card {
+    width: 100%;
+    max-width: 320px;
+    background: var(--panel);
+    border: 2px solid var(--bright);
+    border-radius: 8px;
+    padding: 16px 14px 14px;
+    box-shadow: 0 0 22px rgba(53, 255, 105, 0.3), inset 0 0 14px rgba(53, 255, 105, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
-  #hint {
-    font-size: 9.5px;
-    color: var(--dim);
+  .menu-title {
     text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-    padding: 0 6px;
+    font-size: 16px;
+    font-weight: bold;
+    letter-spacing: 1.5px;
+    text-shadow: 0 0 8px var(--glow);
+    margin-bottom: 2px;
   }
-  #toolbar {
+  .menu-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
   }
   .opt-btn {
     background: var(--panel);
     color: var(--bright);
     border: 1.5px solid var(--border);
     border-radius: 5px;
-    padding: 8px 4px;
+    padding: 12px 4px;
     font-family: inherit;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: bold;
     text-shadow: 0 0 5px var(--glow);
     cursor: pointer;
     text-align: center;
   }
+  .opt-btn.main {
+    border: 2px solid var(--bright);
+    font-size: 15px;
+    padding: 14px 4px;
+  }
   .opt-btn:active {
     background: var(--bright);
     color: var(--bg);
+  }
+  .opt-btn.off {
+    color: var(--dim);
+    text-shadow: none;
+  }
+  #hint {
+    font-size: 10px;
+    line-height: 1.6;
+    color: var(--dim);
+    text-align: center;
+    border-top: 1px solid rgba(31, 122, 53, 0.5);
+    padding-top: 8px;
   }
 
   /* Hidden character measurement probe */
@@ -398,7 +423,7 @@
   <!-- 3-COLUMN ARENA -->
   <div id="arena">
     <div id="left-wing">
-      <button id="btn-pause-icon" aria-label="Pause or Resume">||</button>
+      <button id="btn-pause-icon" aria-label="Pause menu"><span class="bar"></span><span class="bar"></span></button>
       <div class="wing-box" id="hold-box">
         <div class="wing-title">HOLD</div>
         <pre id="hold-pre"></pre>
@@ -429,22 +454,23 @@
     </div>
   </div>
 
-  <!-- SWIPE PAD (gestures also work anywhere outside the buttons) -->
-  <div id="swipe-pad">
-    <div class="pad-title">&lt;&lt; SWIPE PAD &gt;&gt;</div>
-    <div id="hint">Swipe L/R: Move • Tap: Rotate • Drag: Soft • Flick: Slam</div>
-  </div>
+  <!-- Empty space below the board = swipe area -->
+  <div id="swipe-space"></div>
+</div>
 
-  <!-- BOTTOM TERMINAL OPTIONS DECK -->
-  <div id="bottom-deck">
-    <div id="toolbar">
-      <button class="opt-btn" id="btn-start">[START]</button>
+<!-- PAUSE / OPTIONS MENU -->
+<div id="menu" class="hidden">
+  <div class="menu-card">
+    <div class="menu-title" id="menu-title">// PAUSED //</div>
+    <button class="opt-btn main" id="btn-start">[RESUME]</button>
+    <div class="menu-grid">
       <button class="opt-btn" id="btn-hold">[HOLD:ON]</button>
       <button class="opt-btn" id="btn-next">[NEXT:ON]</button>
       <button class="opt-btn" id="btn-ghost">[GHOST:ON]</button>
       <button class="opt-btn" id="btn-sfx">[SFX:ON]</button>
-      <button class="opt-btn" id="btn-reset">[RESET]</button>
     </div>
+    <button class="opt-btn" id="btn-reset">[RESTART]</button>
+    <div id="hint">Swipe L/R: Move &bull; Tap: Rotate<br>Drag down: Soft drop &bull; Flick down: Slam<br>Tap HOLD box: Hold piece</div>
   </div>
 </div>
 
@@ -532,11 +558,15 @@ const ovTitleEl = document.getElementById("ov-title");
 const ovSubEl = document.getElementById("ov-sub");
 const btnPauseIcon = document.getElementById("btn-pause-icon");
 const btnStart = document.getElementById("btn-start");
+const btnReset = document.getElementById("btn-reset");
+const menuEl = document.getElementById("menu");
+const menuTitleEl = document.getElementById("menu-title");
+let menuOpen = false;
 
 // Dynamic ASCII Font Auto-Scaler so board fills center column cleanly
 function fitBoard() {
-  const availW = boardWrapEl.clientWidth - 14;  // frame padding + border
-  const availH = boardWrapEl.clientHeight - 12;
+  const availW = boardWrapEl.clientWidth - 12;  // frame padding + border
+  const availH = boardWrapEl.clientHeight - 10;
   if (availW <= 20 || availH <= 20) return;
 
   const probeRect = probeEl.getBoundingClientRect();
@@ -549,7 +579,7 @@ function fitBoard() {
   const fontSize = Math.max(9, Math.min(34, Math.floor(Math.min(maxFontByW, maxFontByH) * 10) / 10));
 
   // Then stretch row spacing to use the leftover height (keeps cells roughly square)
-  const lineH = Math.max(1.0, Math.min(1.35, Math.floor(availH / (rows * fontSize) * 100) / 100));
+  const lineH = Math.max(1.0, Math.min(1.4, Math.floor(availH / (rows * fontSize) * 100) / 100));
 
   screenEl.style.fontSize = fontSize + "px";
   screenEl.style.lineHeight = String(lineH);
@@ -760,30 +790,35 @@ function updateHud() {
   linesEl.textContent = lines;
   levelEl.textContent = level;
 
-  // Pause icon & Start button label
-  if (state === "PLAY") {
-    btnPauseIcon.textContent = "||";
-    btnStart.textContent = "[PAUSE]";
-    overlayEl.classList.add("hidden");
-  } else if (state === "PAUSE") {
-    btnPauseIcon.textContent = "▶";
-    btnStart.textContent = "[RESUME]";
-    overlayEl.classList.remove("hidden");
-    ovTitleEl.textContent = "// PAUSED //";
-    ovSubEl.textContent = "[ TAP TO RESUME ]";
-  } else if (state === "OVER") {
-    btnPauseIcon.textContent = "▶";
-    btnStart.textContent = "[RETRY]";
+  // Board overlay (title / game over) and pause menu
+  if (state === "PAUSE") menuOpen = true;
+  if (state === "PLAY") menuOpen = false;
+
+  if (state === "OVER") {
     overlayEl.classList.remove("hidden");
     ovTitleEl.textContent = "// GAME OVER //";
     ovSubEl.textContent = "[ TAP TO RETRY ]";
-  } else {
-    btnPauseIcon.textContent = "▶";
-    btnStart.textContent = "[START]";
+  } else if (state === "TITLE") {
     overlayEl.classList.remove("hidden");
     ovTitleEl.textContent = "ELEKTRONIKA 60";
     ovSubEl.textContent = "[ TAP TO START ]";
+  } else {
+    overlayEl.classList.add("hidden");
   }
+
+  menuEl.classList.toggle("hidden", !menuOpen);
+  if (state === "PAUSE") {
+    menuTitleEl.textContent = "// PAUSED //";
+    btnStart.textContent = "[RESUME]";
+  } else if (state === "OVER") {
+    menuTitleEl.textContent = "// GAME OVER //";
+    btnStart.textContent = "[RETRY]";
+  } else {
+    menuTitleEl.textContent = "// OPTIONS //";
+    btnStart.textContent = "[START]";
+  }
+  btnReset.style.display = state === "PAUSE" ? "" : "none";
+  syncOptionButtons();
 
   // Hold Box
   holdBoxEl.classList.toggle("locked", holdUsed || !allowHold);
@@ -839,14 +874,39 @@ function togglePlayPause() {
   ensureAudio();
   if (state === "PLAY") {
     state = "PAUSE";
+    beep(330, 0.05, "triangle", 0.05);
     updateHud();
   } else if (state === "PAUSE") {
     state = "PLAY";
     lastFall = performance.now();
     updateHud();
   } else {
+    menuOpen = false;
     resetGame();
   }
+}
+
+// Top-left pause button: pause/resume during a game, open/close options otherwise
+function onPauseButton() {
+  ensureAudio();
+  if (state === "PLAY" || state === "PAUSE") {
+    togglePlayPause();
+  } else {
+    menuOpen = !menuOpen;
+    updateHud();
+  }
+}
+
+function syncOptionButtons() {
+  const set = (id, on, label) => {
+    const b = document.getElementById(id);
+    b.textContent = "[" + label + ":" + (on ? "ON" : "OFF") + "]";
+    b.classList.toggle("off", !on);
+  };
+  set("btn-hold", allowHold, "HOLD");
+  set("btn-next", showNext, "NEXT");
+  set("btn-ghost", showGhost, "GHOST");
+  set("btn-sfx", sfxOn, "SFX");
 }
 
 function loop(now) {
@@ -869,6 +929,7 @@ function loop(now) {
 window.addEventListener("keydown", e => {
   if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"," "].includes(e.key)) e.preventDefault();
   ensureAudio();
+  if (e.key === "Escape" || e.key === "p" || e.key === "P") { onPauseButton(); return; }
   if (state !== "PLAY") {
     if (e.key === " " || e.key === "Enter") togglePlayPause();
     return;
@@ -879,7 +940,6 @@ window.addEventListener("keydown", e => {
   else if (e.key === "ArrowDown" || e.key === "s" || e.key === "S") softDrop();
   else if (e.key === " ") hardDrop();
   else if (e.key === "c" || e.key === "C" || e.key === "Shift") triggerHold();
-  else if (e.key === "p" || e.key === "P") togglePlayPause();
 });
 
 // Strict Axis-Locked Touch Gestures on Arena / Playfield
@@ -902,17 +962,15 @@ function setAxisHud(txt) {
 
 // Touch surface = whole screen. Buttons, HOLD and NEXT keep their own taps.
 const touchSurfaceEl = document.getElementById("app");
-const swipePadEl = document.getElementById("swipe-pad");
 const NO_GESTURE = "button, #hold-box, #next-box-wrap";
 
 touchSurfaceEl.addEventListener("pointerdown", e => {
   if (!e.isPrimary || e.target.closest(NO_GESTURE)) return;
   ensureAudio();
   if (state !== "PLAY") {
-    togglePlayPause();
+    if (!menuOpen) togglePlayPause(); // tap anywhere to start / retry
     return;
   }
-  swipePadEl.classList.add("active");
   const now = performance.now();
   tStartX = lastRefX = prevMoveX = e.clientX;
   tStartY = lastRefY = prevMoveY = e.clientY;
@@ -1005,7 +1063,6 @@ touchSurfaceEl.addEventListener("pointermove", e => {
 
 function finishGesture(e) {
   if (!e.isPrimary) return;
-  swipePadEl.classList.remove("active");
   if (touchPieceId !== pieceId || state !== "PLAY") {
     touchPieceId = -1;
     gestureMode = null;
@@ -1035,15 +1092,19 @@ function finishGesture(e) {
 
 touchSurfaceEl.addEventListener("pointerup", finishGesture);
 touchSurfaceEl.addEventListener("pointercancel", () => {
-  swipePadEl.classList.remove("active");
   touchPieceId = -1;
   gestureMode = null;
   setAxisHud("IDLE");
 });
 
 // UI Buttons & Side Boxes
-btnPauseIcon.addEventListener("click", togglePlayPause);
+btnPauseIcon.addEventListener("click", onPauseButton);
 btnStart.addEventListener("click", togglePlayPause);
+btnReset.addEventListener("click", () => {
+  ensureAudio();
+  menuOpen = false;
+  resetGame();
+});
 holdBoxEl.addEventListener("click", () => {
   ensureAudio();
   triggerHold();
@@ -1051,35 +1112,33 @@ holdBoxEl.addEventListener("click", () => {
 document.getElementById("next-box-wrap").addEventListener("click", () => {
   ensureAudio();
   showNext = !showNext;
-  document.getElementById("btn-next").textContent = showNext ? "[NEXT:ON]" : "[NEXT:OFF]";
   updateHud();
 });
-document.getElementById("btn-hold").addEventListener("click", e => {
+document.getElementById("btn-hold").addEventListener("click", () => {
   ensureAudio();
   allowHold = !allowHold;
-  e.target.textContent = allowHold ? "[HOLD:ON]" : "[HOLD:OFF]";
   updateHud();
 });
-document.getElementById("btn-next").addEventListener("click", e => {
+document.getElementById("btn-next").addEventListener("click", () => {
   ensureAudio();
   showNext = !showNext;
-  e.target.textContent = showNext ? "[NEXT:ON]" : "[NEXT:OFF]";
   updateHud();
 });
-document.getElementById("btn-ghost").addEventListener("click", e => {
+document.getElementById("btn-ghost").addEventListener("click", () => {
   ensureAudio();
   showGhost = !showGhost;
-  e.target.textContent = showGhost ? "[GHOST:ON]" : "[GHOST:OFF]";
+  updateHud();
   render();
 });
-document.getElementById("btn-sfx").addEventListener("click", e => {
+document.getElementById("btn-sfx").addEventListener("click", () => {
   sfxOn = !sfxOn;
   if (sfxOn) { ensureAudio(); beep(660, 0.04); }
-  e.target.textContent = sfxOn ? "[SFX:ON]" : "[SFX:OFF]";
+  updateHud();
 });
-document.getElementById("btn-reset").addEventListener("click", () => {
-  ensureAudio();
-  resetGame();
+
+// Auto-pause when the app goes to the background
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && state === "PLAY") togglePlayPause();
 });
 
 // Initial Startup
