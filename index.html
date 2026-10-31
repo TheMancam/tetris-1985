@@ -122,26 +122,27 @@
 
   /* 2. Middle 3-Column Arena (HOLD/PAUSE | PLAYFIELD | NEXT QUEUE) */
   #arena {
-    flex: 1 1 auto;
+    flex: 1 1 0;
     min-height: 0;
     width: 100%;
     max-width: 500px;
-    margin: 6px auto;
-    display: grid;
-    grid-template-columns: 68px 1fr 74px;
-    gap: 6px;
-    align-items: start;
+    margin: 6px auto 0;
+    display: flex;
+    gap: 5px;
+    align-items: stretch;
   }
 
   /* Left Wing */
   #left-wing {
+    width: 50px;
+    flex-shrink: 0;
     display: flex;
     flex-direction: column;
     gap: 8px;
     padding-top: 2px;
   }
   #btn-pause-icon {
-    width: 46px;
+    width: 100%;
     height: 36px;
     background: var(--panel);
     border: 1.5px solid var(--border);
@@ -183,8 +184,8 @@
   }
   #hold-pre {
     margin: 0;
-    padding: 8px 2px;
-    font-size: 10px;
+    padding: 8px 1px;
+    font-size: 8.5px;
     line-height: 1.15;
     font-weight: bold;
     text-align: center;
@@ -211,20 +212,20 @@
 
   /* Center Board Wrapper */
   #board-wrap {
-    height: 100%;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    flex: 1 1 0;
     min-height: 0;
     min-width: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    overflow: hidden;
   }
   #board-frame {
     position: relative;
     background: rgba(4, 14, 6, 0.92);
     border: 1.5px solid var(--border);
     border-radius: 6px;
-    padding: 5px 6px;
+    padding: 4px 5px;
     box-shadow: 0 0 16px rgba(53, 255, 105, 0.12), inset 0 0 14px rgba(53, 255, 105, 0.06);
     display: flex;
     align-items: center;
@@ -272,12 +273,14 @@
 
   /* Right Wing (3-Piece NEXT Stack) */
   #right-wing {
+    width: 50px;
+    flex-shrink: 0;
     padding-top: 44px;
   }
   #next-pre {
     margin: 0;
-    padding: 8px 2px;
-    font-size: 10px;
+    padding: 8px 1px;
+    font-size: 8.5px;
     line-height: 1.15;
     font-weight: bold;
     text-align: center;
@@ -295,14 +298,42 @@
     flex-shrink: 0;
     z-index: 5;
   }
+  /* Swipe pad: dedicated touch area under the playfield */
+  #swipe-pad {
+    width: 100%;
+    max-width: 500px;
+    height: clamp(64px, 11dvh, 120px);
+    margin: 6px auto;
+    flex-shrink: 0;
+    border: 1.5px dashed rgba(31, 122, 53, 0.6);
+    border-radius: 6px;
+    background: rgba(7, 22, 10, 0.45);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: background 0.1s;
+  }
+  #swipe-pad.active {
+    background: rgba(53, 255, 105, 0.07);
+    border-color: var(--border);
+  }
+  .pad-title {
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: var(--dim);
+  }
   #hint {
     font-size: 9.5px;
     color: var(--dim);
     text-align: center;
-    margin-bottom: 5px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    max-width: 100%;
+    padding: 0 6px;
   }
   #toolbar {
     display: grid;
@@ -384,7 +415,7 @@
         <div id="overlay">
           <div class="overlay-card">
             <div class="ov-title" id="ov-title">ELEKTRONIKA 60</div>
-            <div class="ov-sub" id="ov-sub">[ TAP BOARD TO START ]</div>
+            <div class="ov-sub" id="ov-sub">[ TAP TO START ]</div>
           </div>
         </div>
       </div>
@@ -398,9 +429,14 @@
     </div>
   </div>
 
+  <!-- SWIPE PAD (gestures also work anywhere outside the buttons) -->
+  <div id="swipe-pad">
+    <div class="pad-title">&lt;&lt; SWIPE PAD &gt;&gt;</div>
+    <div id="hint">Swipe L/R: Move • Tap: Rotate • Drag: Soft • Flick: Slam</div>
+  </div>
+
   <!-- BOTTOM TERMINAL OPTIONS DECK -->
   <div id="bottom-deck">
-    <div id="hint">Swipe L/R: Move • Tap: Rotate • Drag: Soft • Flick: Slam</div>
     <div id="toolbar">
       <button class="opt-btn" id="btn-start">[START]</button>
       <button class="opt-btn" id="btn-hold">[HOLD:ON]</button>
@@ -499,19 +535,24 @@ const btnStart = document.getElementById("btn-start");
 
 // Dynamic ASCII Font Auto-Scaler so board fills center column cleanly
 function fitBoard() {
-  const availW = boardWrapEl.clientWidth - 16;
-  const availH = boardWrapEl.clientHeight - 14;
+  const availW = boardWrapEl.clientWidth - 14;  // frame padding + border
+  const availH = boardWrapEl.clientHeight - 12;
   if (availW <= 20 || availH <= 20) return;
 
   const probeRect = probeEl.getBoundingClientRect();
   const widthPerPx = (probeRect.width || 1440) / 100; // 24 chars wide at 100px
   const rows = 22; // 20 playfield rows + floor + spikes
 
+  // Font as big as the width allows (or height, on short screens)
   const maxFontByW = availW / widthPerPx;
-  const maxFontByH = availH / (rows * 1.08);
-  const fontSize = Math.max(9, Math.min(24, Math.floor(Math.min(maxFontByW, maxFontByH) * 10) / 10));
+  const maxFontByH = availH / rows;
+  const fontSize = Math.max(9, Math.min(34, Math.floor(Math.min(maxFontByW, maxFontByH) * 10) / 10));
+
+  // Then stretch row spacing to use the leftover height (keeps cells roughly square)
+  const lineH = Math.max(1.0, Math.min(1.35, Math.floor(availH / (rows * fontSize) * 100) / 100));
 
   screenEl.style.fontSize = fontSize + "px";
+  screenEl.style.lineHeight = String(lineH);
 }
 
 window.addEventListener("resize", fitBoard);
@@ -729,19 +770,19 @@ function updateHud() {
     btnStart.textContent = "[RESUME]";
     overlayEl.classList.remove("hidden");
     ovTitleEl.textContent = "// PAUSED //";
-    ovSubEl.textContent = "[ TAP BOARD TO RESUME ]";
+    ovSubEl.textContent = "[ TAP TO RESUME ]";
   } else if (state === "OVER") {
     btnPauseIcon.textContent = "▶";
     btnStart.textContent = "[RETRY]";
     overlayEl.classList.remove("hidden");
     ovTitleEl.textContent = "// GAME OVER //";
-    ovSubEl.textContent = "[ TAP BOARD TO RETRY ]";
+    ovSubEl.textContent = "[ TAP TO RETRY ]";
   } else {
     btnPauseIcon.textContent = "▶";
     btnStart.textContent = "[START]";
     overlayEl.classList.remove("hidden");
     ovTitleEl.textContent = "ELEKTRONIKA 60";
-    ovSubEl.textContent = "[ TAP BOARD TO START ]";
+    ovSubEl.textContent = "[ TAP TO START ]";
   }
 
   // Hold Box
@@ -859,14 +900,19 @@ function setAxisHud(txt) {
   axisValEl.textContent = txt;
 }
 
-const boardFrameEl = document.getElementById("board-frame");
+// Touch surface = whole screen. Buttons, HOLD and NEXT keep their own taps.
+const touchSurfaceEl = document.getElementById("app");
+const swipePadEl = document.getElementById("swipe-pad");
+const NO_GESTURE = "button, #hold-box, #next-box-wrap";
 
-boardFrameEl.addEventListener("pointerdown", e => {
+touchSurfaceEl.addEventListener("pointerdown", e => {
+  if (!e.isPrimary || e.target.closest(NO_GESTURE)) return;
   ensureAudio();
   if (state !== "PLAY") {
     togglePlayPause();
     return;
   }
+  swipePadEl.classList.add("active");
   const now = performance.now();
   tStartX = lastRefX = prevMoveX = e.clientX;
   tStartY = lastRefY = prevMoveY = e.clientY;
@@ -877,11 +923,11 @@ boardFrameEl.addEventListener("pointerdown", e => {
   verticalStartTime = now;
   pointerHistory = [{ x: e.clientX, y: e.clientY, t: now }];
   setAxisHud("TAP?");
-  try { boardFrameEl.setPointerCapture(e.pointerId); } catch (err) {}
+  try { touchSurfaceEl.setPointerCapture(e.pointerId); } catch (err) {}
 });
 
-boardFrameEl.addEventListener("pointermove", e => {
-  if (touchPieceId !== pieceId || state !== "PLAY") return;
+touchSurfaceEl.addEventListener("pointermove", e => {
+  if (!e.isPrimary || touchPieceId !== pieceId || state !== "PLAY") return;
 
   const now = performance.now();
   const cw = getCellWidth();
@@ -958,6 +1004,8 @@ boardFrameEl.addEventListener("pointermove", e => {
 });
 
 function finishGesture(e) {
+  if (!e.isPrimary) return;
+  swipePadEl.classList.remove("active");
   if (touchPieceId !== pieceId || state !== "PLAY") {
     touchPieceId = -1;
     gestureMode = null;
@@ -985,8 +1033,9 @@ function finishGesture(e) {
   setAxisHud("IDLE");
 }
 
-boardFrameEl.addEventListener("pointerup", finishGesture);
-boardFrameEl.addEventListener("pointercancel", () => {
+touchSurfaceEl.addEventListener("pointerup", finishGesture);
+touchSurfaceEl.addEventListener("pointercancel", () => {
+  swipePadEl.classList.remove("active");
   touchPieceId = -1;
   gestureMode = null;
   setAxisHud("IDLE");
