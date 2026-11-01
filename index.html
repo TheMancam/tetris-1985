@@ -999,6 +999,7 @@ let touchPieceId = -1;
 let gestureMode = null; // null | "HORIZONTAL" | "VERTICAL"
 let verticalStartY = 0, verticalStartTime = 0;
 let pointerHistory = [];
+let groundRefX = null; // finger x when a dragged-down piece touched the bottom
 
 function getCellWidth() {
   const rect = screenEl.getBoundingClientRect();
@@ -1029,6 +1030,7 @@ touchSurfaceEl.addEventListener("pointerdown", e => {
   verticalStartY = e.clientY;
   verticalStartTime = now;
   pointerHistory = [{ x: e.clientX, y: e.clientY, t: now }];
+  groundRefX = null;
   setAxisHud("TAP?");
   try { touchSurfaceEl.setPointerCapture(e.pointerId); } catch (err) {}
 });
@@ -1084,6 +1086,22 @@ touchSurfaceEl.addEventListener("pointermove", e => {
       verticalStartY = recent.y;
       verticalStartTime = recent.t;
       setAxisHud("DOWN");
+    }
+  }
+
+  // Sideways stays locked while dragging down, but once the piece has landed
+  // a clear sideways slide switches the same drag into left/right movement.
+  if (gestureMode === "VERTICAL") {
+    if (isGrounded()) {
+      if (groundRefX === null) groundRefX = e.clientX;
+      const gdx = e.clientX - groundRefX;
+      if (Math.abs(gdx) >= cw * 0.6 && Math.abs(recentDx) > Math.abs(recentDy) * 1.2) {
+        gestureMode = "HORIZONTAL";
+        lastRefX = groundRefX;
+        setAxisHud("L/R");
+      }
+    } else {
+      groundRefX = null;
     }
   }
 
