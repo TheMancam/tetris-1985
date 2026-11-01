@@ -5,6 +5,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write   # lets the build publish a Release with the APK
+
 jobs:
   build-apk:
     runs-on: ubuntu-24.04
@@ -32,7 +35,7 @@ jobs:
           if [ -f sw.js ]; then cp sw.js www/; fi
           npm init -y
           npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
-          node -e 'require("fs").writeFileSync("capacitor.config.json", JSON.stringify({appId:"com.retro.tetris1985",appName:"Tetris 1985",webDir:"www"}))'
+          node -e 'require("fs").writeFileSync("capacitor.config.json", JSON.stringify({appId:"com.retro.tetris1984",appName:"Tetris 1984",webDir:"www"}))'
           npx cap add android
           node -e 'const fs=require("fs"),p="android/app/src/main/AndroidManifest.xml";const s=fs.readFileSync(p,"utf8");if(!s.includes("screenOrientation"))fs.writeFileSync(p,s.replace("<activity","<activity android:screenOrientation=\"portrait\""));'
           npx cap sync android
@@ -295,5 +298,17 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tetris-1985-debug-apk
+          name: tetris-1984-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Name the APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk Tetris-1984.apk
+
+      - name: Publish a Release with the APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Tetris 1984 (build ${{ github.run_number }})
+          body: Download Tetris-1984.apk below and open it on your phone to install or update.
+          files: Tetris-1984.apk
+          make_latest: true
