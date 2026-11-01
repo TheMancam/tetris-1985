@@ -90,7 +90,13 @@ jobs:
             exit 1
           fi
           mkdir -p ~/.android
-          echo "$DEBUG_KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
+          # keep only real base64 characters, so stray spaces/line breaks from pasting don't break it
+          printf '%s' "$DEBUG_KEYSTORE_B64" | tr -cd 'A-Za-z0-9+/=' | base64 -d > ~/.android/debug.keystore
+          size=$(stat -c %s ~/.android/debug.keystore)
+          if [ "$size" != "2666" ]; then
+            echo "::error::DEBUG_KEYSTORE_B64 looks incomplete (decoded $size bytes, expected 2666). Paste the whole key text again."
+            exit 1
+          fi
 
       - name: Build Debug APK
         working-directory: android
