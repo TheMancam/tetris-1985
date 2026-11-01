@@ -819,8 +819,7 @@ function spawnNext() {
   resetLockState();
   if (collides(SHAPES[curType][rot], px, py)) {
     state = "OVER";
-    beep(196, 0.18, "sawtooth", 0.06);
-    setTimeout(() => beep(130, 0.28, "sawtooth", 0.06), 160);
+    if (sfxOn) { term.init(); term.beep(0); }   // game over = the terminal beep
   }
 }
 
@@ -923,7 +922,7 @@ function triggerHold() {
   }
   holdUsed = true;
   lastFall = performance.now();
-  beep(440, 0.045, "triangle", 0.05);
+  if (sfxOn) { term.init(); term.key(0); }   // hold = a key press
   updateHud();
   render();
 }
@@ -1118,7 +1117,7 @@ function togglePlayPause() {
   if (state === "INTRO") return;
   if (state === "PLAY") {
     state = "PAUSE";
-    beep(330, 0.05, "triangle", 0.05);
+    if (sfxOn) { term.init(); term.key(0); }   // pause = a key press
     updateHud();
     mon.open();
   } else if (state === "PAUSE") {
@@ -1187,6 +1186,7 @@ function loop(now) {
 window.addEventListener("keydown", e => {
   if (["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"," "].includes(e.key)) e.preventDefault();
   ensureAudio();
+  if (state === "INTRO") { revealSkip = true; return; }
   if (e.key === "Escape" || e.key === "p" || e.key === "P") { onPauseButton(); return; }
   if (state !== "PLAY") {
     if (e.key === " " || e.key === "Enter") togglePlayPause();
@@ -1236,6 +1236,7 @@ const touchSurfaceEl = document.getElementById("app");
 const NO_GESTURE = "button, #hold-box, #next-box-wrap";
 
 touchSurfaceEl.addEventListener("pointerdown", e => {
+  if (state === "INTRO") { revealSkip = true; return; }   // tap skips the board type-out
   if (!e.isPrimary || e.target.closest(NO_GESTURE)) return;
   ensureAudio();
   if (state !== "PLAY") {
@@ -1403,6 +1404,7 @@ touchSurfaceEl.addEventListener("pointercancel", () => {
 btnPauseIcon.addEventListener("click", onPauseButton);
 btnStart.addEventListener("click", togglePlayPause);
 // ---------- game start: the board and HUD type out like the computer printing ----------
+let revealSkip = false;   // tapped during the type-out: finish it at once
 function typeText(el, cps) {
   // types every piece of text inside el, in order, at cps characters a second
   const nodes = [];
@@ -1413,6 +1415,7 @@ function typeText(el, cps) {
     let i = 0, pos = 0, done = 0;
     const t0 = performance.now();
     const step = () => {
+      if (revealSkip) { nodes.forEach(([n, full]) => { n.nodeValue = full; }); res(); return; }
       const want = Math.floor((performance.now() - t0) * cps / 1000);
       while (done < want && i < nodes.length) {
         const [n, full] = nodes[i];
@@ -1432,6 +1435,8 @@ function hideForReveal() {
   document.getElementById("board-frame").classList.add("hud-off");
 }
 async function revealGame() {
+  revealSkip = false;
+  const pause = ms => new Promise(r => setTimeout(r, revealSkip ? 0 : ms));
   // 1) the well prints out at computer speed, top to bottom
   render();
   const frame = document.getElementById("board-frame");
@@ -1441,7 +1446,7 @@ async function revealGame() {
   await new Promise(res => {
     const t0 = performance.now(), cps = 360;   // each line types left to right, top to bottom
     const step = () => {
-      const n = Math.min(full.length, Math.floor((performance.now() - t0) * cps / 1000));
+      const n = revealSkip ? full.length : Math.min(full.length, Math.floor((performance.now() - t0) * cps / 1000));
       screenEl.textContent = full.slice(0, n);
       if (n < full.length) setTimeout(step, 16); else res();
     };
@@ -1449,12 +1454,13 @@ async function revealGame() {
   });
   // 2) then the HUD boxes pop in one after another and type their text
   for (const el of HUD_PARTS()) {
-    await new Promise(r => setTimeout(r, 25));
+    await pause(25);
     el.classList.remove("hud-off");
     await typeText(el, 420);
   }
   updateHud();
-  await new Promise(r => setTimeout(r, 250));
+  await pause(250);
+  revealSkip = false;
   // 3) go
   state = "PLAY";
   lastFall = performance.now();
@@ -1507,9 +1513,14 @@ function changeStartLevel(d) {
   if (n === startLevel) return;
   startLevel = n;
   try { localStorage.setItem("e60_start_level", String(n)); } catch (e) {}
-  if (sfxOn) { term.init(); term.key(0); }
   updateHud();
 }
+// every button in the pause / options menu clicks like a key press
+menuEl.addEventListener("click", e => {
+  if (!e.target.closest("button") || !sfxOn) return;
+  term.init();
+  term.key(0);
+}, true);
 document.getElementById("btn-lv-dn").addEventListener("click", () => changeStartLevel(-1));
 document.getElementById("btn-lv-up").addEventListener("click", () => changeStartLevel(1));
 document.getElementById("btn-savequit").addEventListener("click", () => {
@@ -1558,7 +1569,8 @@ document.getElementById("btn-ghost").addEventListener("click", () => {
 });
 document.getElementById("btn-sfx").addEventListener("click", () => {
   sfxOn = !sfxOn;
-  if (sfxOn) { ensureAudio(); beep(660, 0.04); }
+  // turning SFX back on: the menu click was skipped (sound was off), so play the key press now
+  if (sfxOn) { ensureAudio(); term.init(); term.key(0); }
   updateHud();
 });
 
