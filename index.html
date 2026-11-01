@@ -1752,7 +1752,8 @@ const term = (() => {
   T.roomStart = () => {
     if (!AC || room) return;
     const t = AC.currentTime;
-    const bus = AC.createGain(); bus.gain.setValueAtTime(0.0001, t); bus.gain.exponentialRampToValueAtTime(1, t + 3);
+    // no fade-in: the room is simply there from the first moment (a 30 ms ramp just avoids a click)
+    const bus = AC.createGain(); bus.gain.setValueAtTime(0, t); bus.gain.linearRampToValueAtTime(1, t + 0.03);
     bus.connect(out);
     const src = AC.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
     // "HUSH" at 15%: soft low air with only a trace of hiss
