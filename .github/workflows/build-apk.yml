@@ -37,6 +37,61 @@ jobs:
           node -e 'const fs=require("fs"),p="android/app/src/main/AndroidManifest.xml";const s=fs.readFileSync(p,"utf8");if(!s.includes("screenOrientation"))fs.writeFileSync(p,s.replace("<activity","<activity android:screenOrientation=\"portrait\""));'
           npx cap sync android
 
+      - name: Set up Python (for the app icon)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install app icon
+        run: |
+          if [ ! -f icon-foreground.png ] || [ ! -f icon-background.png ] || [ ! -f icon.png ]; then
+            echo "Icon files not found, keeping the default icon"; exit 0
+          fi
+          pip install pillow
+          python3 - <<'PY'
+          import os
+          from PIL import Image, ImageDraw
+          res = "android/app/src/main/res"
+          dens = {"mdpi": 1, "hdpi": 1.5, "xhdpi": 2, "xxhdpi": 3, "xxxhdpi": 4}
+          fg = Image.open("icon-foreground.png").convert("RGBA")
+          bg = Image.open("icon-background.png").convert("RGBA")
+          full = Image.open("icon.png").convert("RGBA")
+          for d, s in dens.items():
+              folder = f"{res}/mipmap-{d}"
+              os.makedirs(folder, exist_ok=True)
+              a, l = round(108 * s), round(48 * s)
+              fg.resize((a, a), Image.LANCZOS).save(f"{folder}/ic_launcher_foreground.png")
+              bg.resize((a, a), Image.LANCZOS).convert("RGB").save(f"{folder}/ic_launcher_background.png")
+              icon = full.resize((l, l), Image.LANCZOS)
+              icon.save(f"{folder}/ic_launcher.png")
+              m = Image.new("L", (l, l), 0)
+              ImageDraw.Draw(m).ellipse((0, 0, l - 1, l - 1), fill=255)
+              r = Image.new("RGBA", (l, l), (0, 0, 0, 0))
+              r.paste(icon, (0, 0), m)
+              r.save(f"{folder}/ic_launcher_round.png")
+          xml = ('<?xml version="1.0" encoding="utf-8"?>\n'
+                 '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'
+                 '  <background android:drawable="@mipmap/ic_launcher_background"/>\n'
+                 '  <foreground android:drawable="@mipmap/ic_launcher_foreground"/>\n'
+                 '</adaptive-icon>\n')
+          os.makedirs(f"{res}/mipmap-anydpi-v26", exist_ok=True)
+          for n in ("ic_launcher.xml", "ic_launcher_round.xml"):
+              with open(f"{res}/mipmap-anydpi-v26/{n}", "w") as f:
+                  f.write(xml)
+          print("App icon installed")
+          PY
+
+      - name: Use fixed signing key (so new APKs update the old app)
+        env:
+          DEBUG_KEYSTORE_B64: ${{ secrets.DEBUG_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$DEBUG_KEYSTORE_B64" ]; then
+            echo "::error::DEBUG_KEYSTORE_B64 secret is missing. Add it in Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          mkdir -p ~/.android
+          echo "$DEBUG_KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
+
       - name: Build Debug APK
         working-directory: android
         run: |
