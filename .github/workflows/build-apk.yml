@@ -42,24 +42,166 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install app icon
+      - name: Draw and install the app icon (retro terminal)
         run: |
-          if [ ! -f icon-foreground.png ] || [ ! -f icon-background.png ] || [ ! -f icon.png ]; then
-            echo "Icon files not found, keeping the default icon"; exit 0
-          fi
           pip install pillow
+          sudo apt-get install -y fonts-dejavu-core > /dev/null 2>&1 || true
           python3 - <<'PY'
           import os
-          from PIL import Image, ImageDraw
+          from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageChops
+
+          S = 1024
+          BRIGHT, DIM = (53, 255, 105), (29, 148, 60)
+
+
+          def font(size):
+              for p in ("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf",
+                        "/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf"):
+                  if os.path.exists(p):
+                      return ImageFont.truetype(p, size)
+              return ImageFont.load_default(size=size)
+
+
+          def vgrad(w, h, top, bottom):
+              g = Image.linear_gradient("L").resize((w, h))
+              return Image.composite(Image.new("RGB", (w, h), bottom), Image.new("RGB", (w, h), top), g)
+
+
+          def rmask(w, h, box, r):
+              m = Image.new("L", (w, h), 0)
+              ImageDraw.Draw(m).rounded_rectangle(box, r, fill=255)
+              return m
+
+
+          def radial(size, inner, outer):
+              g = Image.radial_gradient("L").resize((size, size))
+              return Image.composite(Image.new("RGB", (size, size), outer), Image.new("RGB", (size, size), inner), g)
+
+
+          def background():
+              bg = vgrad(S, S, (11, 26, 14), (3, 8, 5)).convert("RGBA")
+              glow = Image.new("RGBA", (S, S), BRIGHT + (0,))
+              a = Image.radial_gradient("L").resize((1120, 1120)).point(lambda v: int(max(0, 255 - v) * 0.28))
+              am = Image.new("L", (S, S), 0)
+              am.paste(a, (512 - 560, 470 - 560))
+              glow.putalpha(am)
+              bg = Image.alpha_composite(bg, glow)
+              desk = vgrad(S, S - 760, (26, 20, 12), (10, 8, 5)).convert("RGBA")
+              bg.paste(desk, (0, 760))
+              return bg
+
+
+          def terminal():
+              fg = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+              MX, MY, MW, MH = 282, 268, 460, 390
+
+              # drop shadow
+              sh = Image.new("L", (S, S), 0)
+              ImageDraw.Draw(sh).rounded_rectangle((MX, MY + 18, MX + MW, MY + MH + 18), 34, fill=150)
+              sh = sh.filter(ImageFilter.GaussianBlur(20))
+              fg = Image.alpha_composite(fg, Image.merge("RGBA", (*Image.new("RGB", (S, S), (0, 0, 0)).split(), sh)))
+
+              # beige housing
+              housing = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+              housing.paste(vgrad(MW, MH, (228, 220, 196), (169, 159, 132)), (MX, MY))
+              fg.paste(housing, (0, 0), rmask(S, S, (MX, MY, MX + MW, MY + MH), 34))
+              d = ImageDraw.Draw(fg)
+              d.rounded_rectangle((MX + 4, MY + 4, MX + MW - 4, MY + MH - 4), 30, outline=(255, 255, 255, 140), width=5)
+              for i in range(7):
+                  d.rounded_rectangle((MX + 150 + i * 24, MY + 18, MX + 162 + i * 24, MY + 22), 2, fill=(60, 50, 35, 115))
+
+              # deep bezel
+              SX, SY, SW, SH = MX + 46, MY + 46, MW - 92, 262
+              bez = vgrad(SW + 36, SH + 36, (92, 85, 69), (44, 40, 31))
+              fg.paste(bez, (SX - 18, SY - 18), rmask(SW + 36, SH + 36, (0, 0, SW + 35, SH + 35), 26))
+              d.rounded_rectangle((SX - 18, SY - 18, SX + SW + 18, SY + SH + 18), 26, outline=(255, 255, 255, 64), width=3)
+
+              # CRT glass with the game on it
+              scr = radial(SW, (15, 51, 23), (2, 6, 3)).resize((SW, SH)).convert("RGBA")
+              txt = Image.new("RGBA", (SW, SH), (0, 0, 0, 0))
+              f = font(34)
+              rows = [("<!  [][][]  !>", BRIGHT), ("<!    []    !>", BRIGHT), ("<! .  .  .  !>", DIM),
+                      ("<![]      []!>", BRIGHT), ("<![][]  [][]!>", BRIGHT), ("<!==========!>", DIM)]
+              cw = f.getlength("0")
+              lh = 34 * 1.02
+              tw = cw * 14
+              tx = (SW - tw) / 2
+              ty = (SH - len(rows) * lh) / 2
+              td = ImageDraw.Draw(txt)
+              for i, (t, c) in enumerate(rows):
+                  td.text((tx, ty + i * lh), t, font=f, fill=c + (255,))
+              scr = Image.alpha_composite(scr, txt.filter(ImageFilter.GaussianBlur(7)))
+              scr = Image.alpha_composite(scr, txt.filter(ImageFilter.GaussianBlur(2)))
+              scr = Image.alpha_composite(scr, txt)
+              sd = ImageDraw.Draw(scr)
+              for y in range(0, SH, 4):
+                  sd.line((0, y, SW, y), fill=(0, 0, 0, 77), width=1)
+              glare = Image.new("L", (SW, SH), 0)
+              ImageDraw.Draw(glare).ellipse((int(SW * -0.15), int(SH * -0.12), int(SW * 0.75), int(SH * 0.52)), fill=40)
+              glare = glare.filter(ImageFilter.GaussianBlur(30))
+              scr = Image.alpha_composite(scr, Image.merge("RGBA", (*Image.new("RGB", (SW, SH), (255, 255, 255)).split(), glare)))
+              vig = Image.radial_gradient("L").resize((SW, SH)).point(lambda v: int(max(0, v - 120) * 1.1))
+              scr = Image.alpha_composite(scr, Image.merge("RGBA", (*Image.new("RGB", (SW, SH), (0, 0, 0)).split(), vig)))
+              fg.paste(scr, (SX, SY), rmask(SW, SH, (0, 0, SW - 1, SH - 1), 34))
+
+              # control strip: power light, slots, knobs
+              d = ImageDraw.Draw(fg)
+              cy = MY + MH - 42
+              d.rounded_rectangle((MX + 40, cy - 22, MX + MW - 40, cy + 22), 10, fill=(70, 60, 45, 64))
+              for i in range(5):
+                  d.rounded_rectangle((MX + 110 + i * 22, cy - 3, MX + 124 + i * 22, cy + 3), 3, fill=(60, 50, 35, 128))
+              for kx in (MX + 330, MX + 390):
+                  d.ellipse((kx - 16, cy - 16, kx + 16, cy + 16), fill=(52, 47, 36, 255))
+                  d.ellipse((kx - 12, cy - 13, kx + 8, cy + 7), fill=(92, 84, 68, 255))
+                  d.line((kx, cy - 14, kx, cy - 6), fill=(255, 255, 255, 90), width=3)
+              led = Image.new("L", (S, S), 0)
+              ImageDraw.Draw(led).ellipse((MX + 58, cy - 12, MX + 82, cy + 12), fill=200)
+              led = led.filter(ImageFilter.GaussianBlur(8))
+              fg = Image.alpha_composite(fg, Image.merge("RGBA", (*Image.new("RGB", (S, S), BRIGHT).split(), led)))
+              d = ImageDraw.Draw(fg)
+              d.ellipse((MX + 62, cy - 8, MX + 78, cy + 8), fill=BRIGHT + (255,))
+
+              # stand + keyboard
+              d.rectangle((MX + 170, MY + MH - 2, MX + MW - 170, MY + MH + 24), fill=(120, 112, 92, 255))
+              KX, KY, KW, KH = 330, MY + MH + 22, 364, 58
+              ks = Image.new("L", (S, S), 0)
+              ImageDraw.Draw(ks).rounded_rectangle((KX, KY + 8, KX + KW, KY + KH + 8), 12, fill=130)
+              ks = ks.filter(ImageFilter.GaussianBlur(12))
+              fg = Image.alpha_composite(fg, Image.merge("RGBA", (*Image.new("RGB", (S, S), (0, 0, 0)).split(), ks)))
+              fg.paste(vgrad(KW, KH, (221, 212, 186), (165, 155, 128)), (KX, KY), rmask(KW, KH, (0, 0, KW - 1, KH - 1), 12))
+              d = ImageDraw.Draw(fg)
+              for r in range(3):
+                  c = 0
+                  while c < 13:
+                      kx, ky = KX + 16 + c * 26 + (r % 2) * 8, KY + 9 + r * 15
+                      if kx + 20 > KX + KW - 10:
+                          break
+                      w = 120 if (r == 2 and c == 4) else 20
+                      d.rounded_rectangle((kx, ky, kx + w, ky + 11), 2, fill=(74, 68, 54, 255))
+                      c = 9 if (r == 2 and c == 4) else c + 1
+              return fg
+
+
+          def build(out_dir="."):
+              bg, fg = background(), terminal()
+              big = fg.resize((int(S * 1.2), int(S * 1.2)), Image.LANCZOS)
+              full = bg.copy()
+              o = (S - big.size[0]) // 2
+              full.alpha_composite(big.crop((-o, -o, -o + S, -o + S)))
+              bg.save(os.path.join(out_dir, "icon-background.png"))
+              fg.save(os.path.join(out_dir, "icon-foreground.png"))
+              full.save(os.path.join(out_dir, "icon.png"))
+
+          build()
           res = "android/app/src/main/res"
           dens = {"mdpi": 1, "hdpi": 1.5, "xhdpi": 2, "xxhdpi": 3, "xxxhdpi": 4}
           fg = Image.open("icon-foreground.png").convert("RGBA")
           bg = Image.open("icon-background.png").convert("RGBA")
           full = Image.open("icon.png").convert("RGBA")
-          for d, s in dens.items():
-              folder = f"{res}/mipmap-{d}"
+          for dn, sc in dens.items():
+              folder = f"{res}/mipmap-{dn}"
               os.makedirs(folder, exist_ok=True)
-              a, l = round(108 * s), round(48 * s)
+              a, l = round(108 * sc), round(48 * sc)
               fg.resize((a, a), Image.LANCZOS).save(f"{folder}/ic_launcher_foreground.png")
               bg.resize((a, a), Image.LANCZOS).convert("RGB").save(f"{folder}/ic_launcher_background.png")
               icon = full.resize((l, l), Image.LANCZOS)
@@ -82,21 +224,67 @@ jobs:
           PY
 
       - name: Use fixed signing key (so new APKs update the old app)
-        env:
-          DEBUG_KEYSTORE_B64: ${{ secrets.DEBUG_KEYSTORE_B64 }}
         run: |
-          if [ -z "$DEBUG_KEYSTORE_B64" ]; then
-            echo "::error::DEBUG_KEYSTORE_B64 secret is missing. Add it in Settings > Secrets and variables > Actions."
-            exit 1
-          fi
           mkdir -p ~/.android
-          # keep only real base64 characters, so stray spaces/line breaks from pasting don't break it
-          printf '%s' "$DEBUG_KEYSTORE_B64" | tr -cd 'A-Za-z0-9+/=' | base64 -d > ~/.android/debug.keystore
-          size=$(stat -c %s ~/.android/debug.keystore)
-          if [ "$size" != "2666" ]; then
-            echo "::error::DEBUG_KEYSTORE_B64 looks incomplete (decoded $size bytes, expected 2666). Paste the whole key text again."
-            exit 1
+          if [ -f debug.keystore ]; then
+            cp debug.keystore ~/.android/debug.keystore
+            echo "Using debug.keystore from the repo"
+            exit 0
           fi
+          # the debug signing key, written into the build so nothing has to be uploaded
+          cat > key.b64 <<'KEY'
+          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
+          KEY
+          tr -cd 'A-Za-z0-9+/=' < key.b64 | base64 -d > ~/.android/debug.keystore
+          size=$(stat -c %s ~/.android/debug.keystore)
+          if [ "$size" != "2666" ]; then echo "::error::Signing key text is damaged ($size bytes)"; exit 1; fi
+          echo "Signing key ready"
 
       - name: Build Debug APK
         working-directory: android
